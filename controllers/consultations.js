@@ -13,7 +13,7 @@ const config = require('../helpers/ocv-config')(consultation);
 const uuid = require('node-uuid');
 //generate slug
 const slugify = require('slugify');
-//register client for api 
+//register client for api
 const unirest = require('unirest');
 //sanitize data form
 const sanitizeHtml = require('sanitize-html');
@@ -134,11 +134,15 @@ router.get('/confirmation/:URL', function(req, res) {
             let result = rename(consult.toJSON(), function(str) {
                 return str.replace(/^id/, "requestIdentifier");
             });
-            const deleteKey = require('key-del');
+
+	    const deleteKey = require('key-del');
             result = deleteKey(result, ['status', 'url', 'createdAt']);
+
             //Select End Point and provider KEY
             //1. get name of provider tool in collection and construct headers with api key
-            tools.findTool({ name: consult.toolname }, (err, t) => {
+            //tools.findTool({ name : consult.toolname }, (err, t) => {
+            tools.findTool( consult.toolname, (err, t) => {
+
                 if (t) {
                     const args = {
                         data: result, // data to be passed to the REST method
@@ -203,14 +207,29 @@ router.get('/confirmation/:URL', function(req, res) {
                         };
                         // send mail with defined transport object
                         transporter.sendMail(mailOptions, (error, info) => {
+                            let obj;
                             if (error) {
-                                return console.log(error);
-                            }
-                            console.log('Message %s sent: %s', info.messageId, info.response);
+		   		                         obj = {
+                                        success: false,
+                                        title: 'ERREUR : quelque chose s\'est mal passé.',
+                                        msg: response.body.message
+                                    };
+
+                            } else {
+                                    obj = {
+                                        success: true,
+                                        title: 'confirmation',
+                                        msg: 'Bravo votre demande est confirmée. Le déploiement de votre consultation est en cours. Vous recevrez un email dans quelques minutes avec les instructions pour commencer.'
+                                    };
+			    }
+        		    res.render('confirmation', obj);
+
                         });
 
                     } //end if else
-                } // end if tools exists
+                } else {
+			return res.status(404).render('confirmation', {title:'Erreur : Outil non trouvé dans la base'});
+		}// end if tools exists
             });  // end toolsFindONe
 
         } else {// end if consult
